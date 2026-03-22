@@ -2,8 +2,6 @@ name: Build Kodi for Android (ARM32)
 
 on:
   workflow_dispatch: # 允许你在 Actions 页面手动点击运行
-  push:
-    branches: [ "master", "main" ] # 当推送到主分支时自动运行（可根据需要修改）
 
 jobs:
   build:
@@ -43,7 +41,7 @@ jobs:
           cd $HOME/android-tools
           
           # 下载官方最新的 command line tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11479070_latest.zip -O cmdline-tools.zip
+          wget https://dl.google.com/android/repository/commandlinetools-linux-14742973_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip -d $HOME/android-tools/android-sdk-linux/
           
           cd $HOME/android-tools/android-sdk-linux/cmdline-tools/bin
