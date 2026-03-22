@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+
     steps:
       - name: 1. Checkout Kodi source
         uses: actions/checkout@v4
@@ -17,10 +17,12 @@ jobs:
 
       - name: 2. Install required packages
         run: |
+          set -eux
           sudo apt-get update
-          sudo apt-get install -y autoconf bison build-essential curl flex gawk \
-            git gperf unzip zip zlib1g-dev default-jdk libcurl4-openssl-dev \
-            ant
+          sudo apt-get install -y \
+            autoconf bison build-essential curl flex gawk \
+            git gperf unzip zip zlib1g-dev libcurl4-openssl-dev \
+            ant ant-optional libant1.10-java
 
       - name: 3. Setup JDK 17
         uses: actions/setup-java@v4
@@ -28,11 +30,36 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 3.1 Fix Ant classpath
+      - name: 3.1 Verify Java and Ant
         run: |
-          echo "ANT_HOME=/usr/share/ant" >> $GITHUB_ENV
-          # 验证 ant 能正常启动
+          set -eux
+          which java
+          java -version
+          which javac
+          javac -version
+          which ant
+          readlink -f "$(which ant)"
+
+          dpkg -l | grep -E '^ii\s+(ant|ant-optional|libant1.10-java)\b' || true
+
+          ls -l /usr/share/ant/lib/ant-launcher.jar || true
+          ls -l /usr/share/java/ant-launcher*.jar || true
+
+          # 确认 launcher class 真的在 jar 里
+          jar tf /usr/share/ant/lib/ant-launcher.jar | grep 'org/apache/tools/ant/launch/Launcher.class'
+
+          echo "==== ENV BEFORE CLEAN ===="
+          env | grep -E '^(JAVA|ANT|CLASSPATH)' || true
+
+          # 不要让奇怪的环境变量污染 ant
+          unset ANT_HOME
+          unset CLASSPATH
+
+          echo "==== ENV AFTER CLEAN ===="
+          env | grep -E '^(JAVA|ANT|CLASSPATH)' || true
+
           ant -version
+          ant -diagnostics | sed -n '1,120p'
 
       - name: 4. Restore Debug Keystore from Secrets
         env:
@@ -44,10 +71,12 @@ jobs:
 
       - name: 5. Download and Configure Android SDK & NDK
         run: |
+          set -eux
           mkdir -p $HOME/android-tools/android-sdk-linux
           cd $HOME/android-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip -d $HOME/android-tools/android-sdk-linux/
+
           cd $HOME/android-tools/android-sdk-linux/cmdline-tools/bin
           yes | ./sdkmanager --sdk_root=$HOME/android-tools/android-sdk-linux --licenses
           ./sdkmanager --sdk_root=$HOME/android-tools/android-sdk-linux \
@@ -55,28 +84,48 @@ jobs:
 
       - name: 6. Build tools and dependencies (ARM32)
         run: |
+          set -eux
+
+          # 这里再清一次，确保 make 继承的是干净环境
+          unset ANT_HOME
+          unset CLASSPATH
+
+          which ant
+          ant -version
+
           cd ${{ github.workspace }}/kodi/tools/depends
           ./bootstrap
           ./configure --with-tarballs=$HOME/android-tools/xbmc-tarballs \
                       --host=arm-linux-androideabi \
                       --with-sdk-path=$HOME/android-tools/android-sdk-linux \
                       --prefix=$HOME/android-tools/xbmc-depends
-          make -j$(nproc)
+
+          env -u ANT_HOME -u CLASSPATH make -j$(nproc)
 
       - name: 7. Configure and Build Kodi
         run: |
+          set -eux
+          unset ANT_HOME
+          unset CLASSPATH
+
           cd ${{ github.workspace }}/kodi
           mkdir -p $HOME/kodi-build
           make -C tools/depends/target/cmakebuildsys BUILD_DIR=$HOME/kodi-build
+
           cd $HOME/kodi-build
-          make -j$(nproc)
+          env -u ANT_HOME -u CLASSPATH make -j$(nproc)
 
       - name: 8. Package APK
         run: |
+          set -eux
+          unset ANT_HOME
+          unset CLASSPATH
+
           cd $HOME/kodi-build
-          make apk
+          env -u ANT_HOME -u CLASSPATH make apk
 
       - name: 9. Upload Artifact (Save APK)
+        if: ${{ success() }}
         uses: actions/upload-artifact@v4
         with:
           name: Kodi-Android-ARM32-APK
@@ -84,10 +133,18 @@ jobs:
           retention-days: 7
 
       - name: Debug Ant
+        if: ${{ always() }}
         run: |
+          set +e
           echo "JAVA_HOME=$JAVA_HOME"
           echo "ANT_HOME=$ANT_HOME"
-          env | grep -E 'JAVA|ANT|CLASSPATH' || true
+          echo "CLASSPATH=$CLASSPATH"
+          env | grep -E '^(JAVA|ANT|CLASSPATH)' || true
+          which java || true
+          which javac || true
           which ant || true
-          ant -diagnostics || true
-          ls -R /usr/share/ant || true     
+          readlink -f "$(which ant)" || true
+          ant -version || true
+          ant -diagnostics | sed -n '1,200p' || true
+          ls -l /usr/share/ant/lib || true
+          ls -l /usr/share/java/ant* || true
