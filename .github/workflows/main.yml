@@ -5,8 +5,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-22.04
+    
     steps:
       - name: 1. Checkout Kodi source
         uses: actions/checkout@v4
@@ -82,3 +82,12 @@ jobs:
           name: Kodi-Android-ARM32-APK
           path: ${{ github.workspace }}/kodi/*.apk
           retention-days: 7
+
+      - name: Debug Ant
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "ANT_HOME=$ANT_HOME"
+          env | grep -E 'JAVA|ANT|CLASSPATH' || true
+          which ant || true
+          ant -diagnostics || true
+          ls -R /usr/share/ant || true     
