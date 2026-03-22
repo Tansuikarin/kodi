@@ -19,7 +19,8 @@ jobs:
         run: |
           sudo apt-get update
           # 去除了 lib32... 等在最新 Ubuntu actions runner 上可能会冲突的废弃 32 位库，保留了核心编译依赖
-          sudo apt-get install -y autoconf bison build-essential curl flex gawk git gperf unzip zip zlib1g-dev default-jdk libcurl4-openssl-dev
+          # 【修改点】：在这里加上了 ant 和 ant-optional 以解决 libbluray 编译时找不到 ant 启动类的错误
+          sudo apt-get install -y autoconf bison build-essential curl flex gawk git gperf unzip zip zlib1g-dev default-jdk libcurl4-openssl-dev ant ant-optional
 
       - name: 3. Setup JDK 17
         uses: actions/setup-java@v4
