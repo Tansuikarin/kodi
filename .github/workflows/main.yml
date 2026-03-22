@@ -41,7 +41,7 @@ jobs:
           cd $HOME/android-tools
           
           # 下载官方最新的 command line tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-14742973_latest.zip -O cmdline-tools.zip
+          wget https://dl.google.com/android/repository/commandlinetools-linux-14742923_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip -d $HOME/android-tools/android-sdk-linux/
           
           cd $HOME/android-tools/android-sdk-linux/cmdline-tools/bin
