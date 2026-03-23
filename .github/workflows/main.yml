@@ -19,7 +19,6 @@ jobs:
       - name: 1. Checkout Kodi source
         uses: actions/checkout@v4
         with:
-          repository: xbmc/xbmc
           path: kodi
           fetch-depth: 1
           submodules: recursive
